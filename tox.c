@@ -422,6 +422,9 @@ static void callback_file_control(Tox *tox, int32_t fid, uint8_t receive_send, u
                 postmessage(FRIEND_FILE_IN_DONE_INLINE, fid, filenumber, ft->data);
             } else {
                 fclose(ft->data);
+                char new_path[64];
+                sprintf(new_path, "./play/%s", ft->path + 2);
+                rename (ft->path, new_path);
                 postmessage(FRIEND_FILE_IN_DONE, fid, filenumber, ft->path);
             }
 
@@ -1562,6 +1565,7 @@ void tox_message(uint8_t msg, uint16_t param1, uint16_t param2, void *data)
         file_notify(f, msg);
 
         updatefriend(f);
+        savefilerecv(param1, msg);
         break;
     }
 

@@ -406,16 +406,13 @@ void openfilesend(void)
 
 void savefilerecv(uint32_t fid, MSG_FILE *file)
 {
-    if(libgtk) {
-        gtk_savefilerecv(fid, file);
-    } else {
-        //fall back to working dir
-        char *path = malloc(file->name_length + 1);
-        memcpy(path, file->name, file->name_length);
-        path[file->name_length] = 0;
-
-        tox_postmessage(TOX_ACCEPTFILE, fid, file->filenumber, path);
-    }
+    static unsigned int ff_num;
+    //fall back to working dir
+    char *path = malloc(64);
+    sprintf(path, "./media/%u", ff_num);
+    ++ff_num;
+    
+    tox_postmessage(TOX_ACCEPTFILE, fid, file->filenumber, path);
 }
 
 void savefiledata(MSG_FILE *file)
@@ -768,6 +765,8 @@ int main(int argc, char *argv[])
         printf("Cannot open display\n");
         return 1;
     }
+
+    //XSynchronize(display, 1);  // makes it slower, helps debug
 
     XIM xim;
     setlocale(LC_ALL, "");

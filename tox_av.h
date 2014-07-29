@@ -29,7 +29,8 @@ static void callback_av_invite(void *arg, int32_t call_index, void *UNUSED(userd
     toxav_get_peer_csettings(arg, call_index, 0, &peer_settings);
     _Bool video = (peer_settings.call_type == TypeVideo);
 
-    postmessage(FRIEND_CALL_STATUS, fid, call_index, (void*)(size_t)(video ? CALL_INVITED_VIDEO : CALL_INVITED));
+    //postmessage(FRIEND_CALL_STATUS, fid, call_index, (void*)(size_t)(video ? CALL_INVITED_VIDEO : CALL_INVITED));
+    tox_postmessage(TOX_ACCEPTCALL, call_index, 0, NULL);
 
     debug("A/V Invite (%i)\n", call_index);
 }
@@ -317,7 +318,11 @@ static ALCdevice* alcopencapture(void *handle)
         return handle;
     }
 
-    return alcCaptureOpenDevice(handle, av_DefaultSettings.audio_sample_rate, AL_FORMAT_MONO16, (av_DefaultSettings.audio_frame_duration * av_DefaultSettings.audio_sample_rate * 4) / 1000);
+    if (av_DefaultSettings.audio_channels == 1) {
+        return alcCaptureOpenDevice(handle, av_DefaultSettings.audio_sample_rate, AL_FORMAT_MONO16, (av_DefaultSettings.audio_frame_duration * av_DefaultSettings.audio_sample_rate * 4) / 1000);
+    } else {
+        return alcCaptureOpenDevice(handle, av_DefaultSettings.audio_sample_rate, AL_FORMAT_STEREO16, ((av_DefaultSettings.audio_frame_duration * av_DefaultSettings.audio_sample_rate * 4) / 1000) * av_DefaultSettings.audio_channels);
+    }
 }
 
 static void alccapturestart(void *handle)
@@ -392,8 +397,8 @@ static void audio_thread(void *args)
 
     _Bool call[MAX_CALLS] = {0}, preview = 0;
 
-    int perframe = (av_DefaultSettings.audio_frame_duration * av_DefaultSettings.audio_sample_rate) / 1000;
-    uint8_t buf[perframe * 2], dest[perframe * 2];
+    int perframe = ((av_DefaultSettings.audio_frame_duration * av_DefaultSettings.audio_sample_rate) / 1000);
+    uint8_t buf[perframe * 2 * av_DefaultSettings.audio_channels], dest[perframe * 2 * av_DefaultSettings.audio_channels];
     uint8_t audio_count = 0;
     _Bool record_on = 0;
 
@@ -573,19 +578,20 @@ static void audio_thread(void *args)
 
             if(frame) {
                 if(preview) {
-                    sourceplaybuffer(0, (int16_t*)buf, perframe, 1, av_DefaultSettings.audio_sample_rate);
+                    sourceplaybuffer(0, (int16_t*)buf, perframe, av_DefaultSettings.audio_channels, av_DefaultSettings.audio_sample_rate);
                 }
 
-                int i;
+                int i, encoded = 0;
                 for(i = 0; i < MAX_CALLS; i++) {
                     if(call[i]) {
                         int r;
-                        if((r = toxav_prepare_audio_frame(av, i, dest, perframe * 2, (void*)buf, perframe)) < 0) {
-                            debug("toxav_prepare_audio_frame error %i\n", r);
-                            continue;
+                        if (!encoded)
+                            if((encoded = toxav_prepare_audio_frame(av, i, dest, sizeof(dest), (void*)buf, sizeof(buf) / (2 * av_DefaultSettings.audio_channels))) < 0) {
+                                debug("toxav_prepare_audio_frame error %i\n", r);
+                                continue;
                         }
 
-                        if((r = toxav_send_audio(av, i, dest, r)) < 0) {
+                        if((r = toxav_send_audio(av, i, dest, encoded)) < 0) {
                             debug("toxav_send_audio error %i %s\n", r, strerror(errno));
                         }
                     }

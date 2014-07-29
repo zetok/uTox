@@ -28,7 +28,7 @@
 
 #define VERSION "0.1.8"
 
-#define MAX_CALLS 16
+#define MAX_CALLS 64
 #define MAX_BACKLOG_MESSAGES 128
 
 typedef struct
@@ -94,7 +94,7 @@ _Bool audio_preview, video_preview;
 
 volatile _Bool logging_enabled;
 
-#define MAX_NUM_FRIENDS 256
+#define MAX_NUM_FRIENDS 1024
 
 //friends and groups
 //note: assumes array size will always be large enough
