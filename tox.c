@@ -1430,6 +1430,9 @@ void tox_message(uint8_t tox_message_id, uint16_t param1, uint16_t param2, void 
 
         file_notify(f, msg);
 
+        if (tox_message_id == FRIEND_FILE_IN_NEW)
+            savefilerecv(param1, msg);
+
         updatefriend(f);
         break;
     }
@@ -1466,6 +1469,7 @@ void tox_message(uint8_t tox_message_id, uint16_t param1, uint16_t param2, void 
         FILE_T *ft = &f->incoming[param2];
 
         MSG_FILE *msg = ft->chatdata;
+        if (!msg) break;
         msg->status = (size_t)data;
 
         file_notify(f, msg);

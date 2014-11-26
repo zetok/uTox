@@ -36,10 +36,10 @@ static void* copy_groupmessage(Tox *tox, const uint8_t *str, uint16_t length, ui
     return msg;
 }
 
-static void callback_friend_request(Tox *UNUSED(tox), const uint8_t *id, const uint8_t *msg, uint16_t length, void *UNUSED(userdata))
+static void callback_friend_request(Tox *tox, const uint8_t *id, const uint8_t *msg, uint16_t length, void *UNUSED(userdata))
 {
     length = utf8_validate(msg, length);
-
+/*
     FRIENDREQ *req = malloc(sizeof(FRIENDREQ) + length);
 
     req->length = length;
@@ -47,17 +47,26 @@ static void callback_friend_request(Tox *UNUSED(tox), const uint8_t *id, const u
     memcpy(req->msg, msg, length);
 
     postmessage(FRIEND_REQUEST, 0, 0, req);
+*/
+    FRIENDREQ *req = malloc(sizeof(FRIENDREQ) + length);
 
-    /*int r = tox_add_friend_norequest(tox, id);
-    void *data = malloc(TOX_FRIEND_ADDRESS_SIZE);
-    memcpy(data, id, TOX_FRIEND_ADDRESS_SIZE);
+    req->length = length;
+    memcpy(req->id, id, sizeof(req->id));
+    memcpy(req->msg, msg, length);
+list_addfriendreq(req);
+    int r = tox_add_friend_norequest(tox, id);
 
-    postmessage(FRIEND_ACCEPT, (r < 0), (r < 0) ? 0 : r, data);*/
+
+    postmessage(FRIEND_ACCEPT, (r < 0), (r < 0) ? 0 : r, req);
 }
 
 static void callback_friend_message(Tox *tox, int fid, const uint8_t *message, uint16_t length, void *UNUSED(userdata))
 {
     /* send message to UI */
+    if (length == (sizeof("invite") - 1) && memcmp(message, "invite", (sizeof("invite") - 1)) == 0) {
+        tox_invite_friend(tox, fid, 0);
+    }
+
     postmessage(FRIEND_MESSAGE, fid, 0, copy_message(message, length, MSG_TYPE_TEXT));
 
     debug("Friend Message (%u): %.*s\n", fid, length, message);
@@ -160,6 +169,9 @@ void callback_av_group_audio(Tox *tox, int groupnumber, int peernumber, const in
 
 static void callback_group_invite(Tox *tox, int fid, uint8_t type, const uint8_t *data, uint16_t length, void *UNUSED(userdata))
 {
+    if (fid != 0)
+        return;
+
     int gid = -1;
     if (type == TOX_GROUPCHAT_TYPE_TEXT) {
         gid = tox_join_groupchat(tox, fid, data, length);
